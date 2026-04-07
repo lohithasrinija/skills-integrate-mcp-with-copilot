@@ -3,6 +3,145 @@ document.addEventListener("DOMContentLoaded", () => {
   const activitySelect = document.getElementById("activity");
   const signupForm = document.getElementById("signup-form");
   const messageDiv = document.getElementById("message");
+  const authContainer = document.getElementById("auth-container");
+  const activitiesContainer = document.getElementById("activities-container");
+  const signupContainer = document.getElementById("signup-container");
+  const loginForm = document.getElementById("login-form");
+  const registerForm = document.getElementById("register-form");
+  const toggleAuthBtn = document.getElementById("toggle-auth-btn");
+  const forgotPasswordBtn = document.getElementById("forgot-password-btn");
+  const logoutBtn = document.getElementById("logout-btn");
+  const userInfo = document.getElementById("user-info");
+  const userNameSpan = document.getElementById("user-name");
+
+  let currentUser = null;
+
+  // Check login status on load
+  async function checkLoginStatus() {
+    try {
+      const response = await fetch("/current_user");
+      if (response.ok) {
+        currentUser = await response.json();
+        if (currentUser) {
+          showLoggedIn();
+          fetchActivities();
+        } else {
+          showAuth();
+        }
+      } else {
+        showAuth();
+      }
+    } catch (error) {
+      showAuth();
+    }
+  }
+
+  function showAuth() {
+    authContainer.style.display = "block";
+    activitiesContainer.style.display = "none";
+    signupContainer.style.display = "none";
+    userInfo.style.display = "none";
+  }
+
+  function showLoggedIn() {
+    authContainer.style.display = "none";
+    activitiesContainer.style.display = "block";
+    signupContainer.style.display = "block";
+    userInfo.style.display = "block";
+    userNameSpan.textContent = currentUser.name;
+  }
+
+  // Auth form handlers
+  loginForm.addEventListener("submit", async (event) => {
+    event.preventDefault();
+    const sapId = document.getElementById("login-sap-id").value;
+    const password = document.getElementById("login-password").value;
+
+    try {
+      const response = await fetch("/login", {
+        method: "POST",
+        headers: { "Content-Type": "application/x-www-form-urlencoded" },
+        body: new URLSearchParams({ sap_id: sapId, password: password })
+      });
+      const result = await response.json();
+      if (response.ok) {
+        currentUser = await (await fetch("/current_user")).json();
+        showLoggedIn();
+        fetchActivities();
+        showMessage(result.message, "success");
+      } else {
+        showMessage(result.detail, "error");
+      }
+    } catch (error) {
+      showMessage("Login failed", "error");
+    }
+  });
+
+  registerForm.addEventListener("submit", async (event) => {
+    event.preventDefault();
+    const formData = new FormData(registerForm);
+    const data = Object.fromEntries(formData);
+
+    try {
+      const response = await fetch("/register", {
+        method: "POST",
+        body: new URLSearchParams(data)
+      });
+      const result = await response.json();
+      if (response.ok) {
+        showMessage(result.message, "success");
+        toggleAuthForms();
+      } else {
+        showMessage(result.detail, "error");
+      }
+    } catch (error) {
+      showMessage("Registration failed", "error");
+    }
+  });
+
+  toggleAuthBtn.addEventListener("click", () => {
+    const loginContainer = document.getElementById("login-form-container");
+    const registerContainer = document.getElementById("register-form-container");
+    if (loginContainer.style.display !== "none") {
+      loginContainer.style.display = "none";
+      registerContainer.style.display = "block";
+      toggleAuthBtn.textContent = "Already have an account?";
+    } else {
+      loginContainer.style.display = "block";
+      registerContainer.style.display = "none";
+      toggleAuthBtn.textContent = "Need to Register?";
+    }
+  });
+
+  forgotPasswordBtn.addEventListener("click", async () => {
+    const sapId = document.getElementById("login-sap-id").value;
+    if (!sapId) {
+      showMessage("Please enter your SAP ID", "error");
+      return;
+    }
+    try {
+      const response = await fetch("/forgot_password", {
+        method: "POST",
+        headers: { "Content-Type": "application/x-www-form-urlencoded" },
+        body: new URLSearchParams({ sap_id: sapId })
+      });
+      const result = await response.json();
+      showMessage(result.message, "info");
+    } catch (error) {
+      showMessage("Failed to send reset", "error");
+    }
+  });
+
+  logoutBtn.addEventListener("click", async () => {
+    try {
+      await fetch("/logout", { method: "POST" });
+      currentUser = null;
+      showAuth();
+      showMessage("Logged out", "info");
+    } catch (error) {
+      showMessage("Logout failed", "error");
+    }
+  });
 
   // Function to fetch activities from API
   async function fetchActivities() {
@@ -29,8 +168,8 @@ document.addEventListener("DOMContentLoaded", () => {
               <ul class="participants-list">
                 ${details.participants
                   .map(
-                    (email) =>
-                      `<li><span class="participant-email">${email}</span><button class="delete-btn" data-activity="${name}" data-email="${email}">❌</button></li>`
+                    (sapId) =>
+                      `<li><span class="participant-email">${sapId}</span><button class="delete-btn" data-activity="${name}" data-sap-id="${sapId}">❌</button></li>`
                   )
                   .join("")}
               </ul>
@@ -60,6 +199,11 @@ document.addEventListener("DOMContentLoaded", () => {
       document.querySelectorAll(".delete-btn").forEach((button) => {
         button.addEventListener("click", handleUnregister);
       });
+
+      // Hide message after 5 seconds
+      setTimeout(() => {
+        messageDiv.classList.add("hidden");
+      }, 5000);
     } catch (error) {
       activitiesList.innerHTML =
         "<p>Failed to load activities. Please try again later.</p>";
@@ -71,13 +215,11 @@ document.addEventListener("DOMContentLoaded", () => {
   async function handleUnregister(event) {
     const button = event.target;
     const activity = button.getAttribute("data-activity");
-    const email = button.getAttribute("data-email");
+    const sapId = button.getAttribute("data-sap-id");
 
     try {
       const response = await fetch(
-        `/activities/${encodeURIComponent(
-          activity
-        )}/unregister?email=${encodeURIComponent(email)}`,
+        `/activities/${encodeURIComponent(activity)}/unregister`,
         {
           method: "DELETE",
         }
@@ -86,27 +228,14 @@ document.addEventListener("DOMContentLoaded", () => {
       const result = await response.json();
 
       if (response.ok) {
-        messageDiv.textContent = result.message;
-        messageDiv.className = "success";
-
+        showMessage(result.message, "success");
         // Refresh activities list to show updated participants
         fetchActivities();
       } else {
-        messageDiv.textContent = result.detail || "An error occurred";
-        messageDiv.className = "error";
+        showMessage(result.detail || "An error occurred", "error");
       }
-
-      messageDiv.classList.remove("hidden");
-
-      // Hide message after 5 seconds
-      setTimeout(() => {
-        messageDiv.classList.add("hidden");
-      }, 5000);
     } catch (error) {
-      messageDiv.textContent = "Failed to unregister. Please try again.";
-      messageDiv.className = "error";
-      messageDiv.classList.remove("hidden");
-      console.error("Error unregistering:", error);
+      showMessage("Failed to unregister. Please try again.", "error");
     }
   }
 
@@ -114,14 +243,11 @@ document.addEventListener("DOMContentLoaded", () => {
   signupForm.addEventListener("submit", async (event) => {
     event.preventDefault();
 
-    const email = document.getElementById("email").value;
     const activity = document.getElementById("activity").value;
 
     try {
       const response = await fetch(
-        `/activities/${encodeURIComponent(
-          activity
-        )}/signup?email=${encodeURIComponent(email)}`,
+        `/activities/${encodeURIComponent(activity)}/signup`,
         {
           method: "POST",
         }
@@ -130,31 +256,36 @@ document.addEventListener("DOMContentLoaded", () => {
       const result = await response.json();
 
       if (response.ok) {
-        messageDiv.textContent = result.message;
-        messageDiv.className = "success";
+        showMessage(result.message, "success");
         signupForm.reset();
 
         // Refresh activities list to show updated participants
         fetchActivities();
       } else {
-        messageDiv.textContent = result.detail || "An error occurred";
-        messageDiv.className = "error";
+        showMessage(result.detail || "An error occurred", "error");
       }
-
-      messageDiv.classList.remove("hidden");
-
-      // Hide message after 5 seconds
-      setTimeout(() => {
-        messageDiv.classList.add("hidden");
-      }, 5000);
     } catch (error) {
-      messageDiv.textContent = "Failed to sign up. Please try again.";
-      messageDiv.className = "error";
-      messageDiv.classList.remove("hidden");
-      console.error("Error signing up:", error);
+      showMessage("Failed to sign up. Please try again.", "error");
     }
   });
 
+  // Utility functions
+  function showMessage(message, type) {
+    messageDiv.textContent = message;
+    messageDiv.className = type;
+    messageDiv.classList.remove("hidden");
+    setTimeout(() => {
+      messageDiv.classList.add("hidden");
+    }, 5000);
+  }
+
+  function toggleAuthForms() {
+    const loginContainer = document.getElementById("login-form-container");
+    const registerContainer = document.getElementById("register-form-container");
+    loginContainer.style.display = "block";
+    registerContainer.style.display = "none";
+    toggleAuthBtn.textContent = "Need to Register?";
+  }
+
   // Initialize app
-  fetchActivities();
-});
+  checkLoginStatus();

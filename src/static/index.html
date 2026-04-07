@@ -13,7 +13,72 @@
     </header>
 
     <main>
-      <section id="activities-container">
+      <section id="auth-container">
+        <h3>Authentication</h3>
+        <div id="auth-forms">
+          <div id="login-form-container">
+            <h4>Login</h4>
+            <form id="login-form">
+              <div class="form-group">
+                <label for="login-sap-id">SAP ID:</label>
+                <input type="text" id="login-sap-id" required />
+              </div>
+              <div class="form-group">
+                <label for="login-password">Password:</label>
+                <input type="password" id="login-password" required />
+              </div>
+              <button type="submit">Login</button>
+            </form>
+            <button id="forgot-password-btn">Forgot Password?</button>
+          </div>
+          <div id="register-form-container" style="display: none;">
+            <h4>Register</h4>
+            <form id="register-form">
+              <div class="form-group">
+                <label for="reg-name">Name:</label>
+                <input type="text" id="reg-name" required />
+              </div>
+              <div class="form-group">
+                <label for="reg-sap-id">SAP ID:</label>
+                <input type="text" id="reg-sap-id" required />
+              </div>
+              <div class="form-group">
+                <label for="reg-password">Password:</label>
+                <input type="password" id="reg-password" required />
+              </div>
+              <div class="form-group">
+                <label for="reg-reg-number">Registration Number:</label>
+                <input type="text" id="reg-reg-number" required />
+              </div>
+              <div class="form-group">
+                <label for="reg-branch">Branch:</label>
+                <input type="text" id="reg-branch" required />
+              </div>
+              <div class="form-group">
+                <label for="reg-year">Year:</label>
+                <input type="text" id="reg-year" required />
+              </div>
+              <div class="form-group">
+                <label for="reg-gender">Gender:</label>
+                <select id="reg-gender" required>
+                  <option value="">-- Select --</option>
+                  <option value="Male">Male</option>
+                  <option value="Female">Female</option>
+                  <option value="Other">Other</option>
+                </select>
+              </div>
+              <button type="submit">Register</button>
+            </form>
+          </div>
+          <button id="toggle-auth-btn">Need to Register?</button>
+        </div>
+        <div id="user-info" style="display: none;">
+          <p>Welcome, <span id="user-name"></span>!</p>
+          <button id="logout-btn">Logout</button>
+        </div>
+      </section>
+
+      <section id="activities-container" style="display: none;">
         <h3>Available Activities</h3>
         <div id="activities-list">
           <!-- Activities will be loaded here -->
@@ -21,13 +86,9 @@
         </div>
       </section>
 
-      <section id="signup-container">
+      <section id="signup-container" style="display: none;">
         <h3>Sign Up for an Activity</h3>
         <form id="signup-form">
-          <div class="form-group">
-            <label for="email">Student Email:</label>
-            <input type="email" id="email" required placeholder="your-email@mergington.edu" />
-          </div>
           <div class="form-group">
             <label for="activity">Select Activity:</label>
             <select id="activity" required>
